@@ -138,12 +138,11 @@ def get_stock_price_yfinance(ticker):
         if not PROXY_IP or not PROXY_PORT: return None
         print(f"  - [yfinance-代理] 正在通过 {PROXY_IP}:{PROXY_PORT} 尝试...")
         try:
-            proxies = {'http': f'http://{PROXY_IP}:{PROXY_PORT}', 'https': f'http://{PROXY_IP}:{PROXY_PORT}'}
-            session = requests.Session();
-            session.proxies.update(proxies);
-            session.verify = False
-            stock = yf.Ticker(yf_ticker, session=session)
-            hist = stock.history(period='5d', auto_adjust=True)
+            stock = yf.Ticker(yf_ticker)
+            proxy_url = f"http://{PROXY_IP}:{PROXY_PORT}"
+            hist = stock.history(period='5d', auto_adjust=True, proxy=proxy_url)
+            # --- 修改结束 ---
+
             if hist.empty: raise ConnectionError("通过代理仍返回空数据。")
             last_trade = hist.iloc[-1];
             price = last_trade['Close']
@@ -377,7 +376,7 @@ def save_history(date_to_save, value_to_save, asset_details):
     # total_value列的NaN用 '0.00' 填充
     if 'total_value' in df.columns:
         # 改动点: 分隔符从 ',' 变为 '|'
-        df['total_value'] = df['total_value'].replace("(0.00|0.00)", "0.00")
+        df['total_value'].replace("(0.00|0.00)", "0.00", inplace=True)
 
     # 6. 重新排序列
     if 'total_value' in df.columns:
@@ -475,13 +474,8 @@ def plot_history_graph(output_filename):
     ax.set_xlabel('Date', fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('$%1.0f'))
-    if not df_plot.index.empty and len(df_plot.index) > 1:
+    if not df_plot.index.empty:
         ax.set_xlim(df_plot.index[0], df_plot.index[-1])
-    elif not df_plot.index.empty and len(df_plot.index) == 1:
-        # Handle case where there's only one data point
-        single_date = df_plot.index[0]
-        days_offset = pd.Timedelta(days=1)
-        ax.set_xlim(single_date - days_offset, single_date + days_offset)
     ax.axhline(0, color='black', linewidth=0.5)
     plt.xticks(rotation=45)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
